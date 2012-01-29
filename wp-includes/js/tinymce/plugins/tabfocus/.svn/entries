@@ -1,0 +1,41 @@
+8
+
+dir
+15186
+http://core.svn.wordpress.org/trunk/wp-includes/js/tinymce/plugins/tabfocus
+http://core.svn.wordpress.org
+
+
+
+2009-04-17T22:43:57.154910Z
+10994
+azaozz
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+1a063a9b-81f0-0310-95a4-ce76da25c4cd
+
+editor_plugin.js
+file
+
+
+
+
+2010-06-10T10:48:27.000000Z
+1a8e22759ea3340a010af52f4210a26e
+2009-04-17T22:43:57.154910Z
+10994
+azaozz
+has-props
+

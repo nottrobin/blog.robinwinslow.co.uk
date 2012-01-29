@@ -1,0 +1,240 @@
+<?php
+/**
+ * @package WordPress
+ * @subpackage RW_theme
+ */
+?>
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+	<title><? wp_title('&laquo;', true, 'right') ?> <? bloginfo('name') ?></title>
+
+	<meta charset="<? bloginfo('charset') ?>" />
+
+	<style type="text/css" media="screen">
+		@import url( <? bloginfo('stylesheet_url') ?> );
+	</style>
+
+	<link rel="pingback" href="<? bloginfo('pingback_url') ?>" />
+	<? wp_get_archives('type=monthly&format=link') ?>
+	<? wp_head() ?>
+</head>
+
+<body <? body_class() ?>>
+    <header>
+         <a href="<? bloginfo('url') ?>/"><? bloginfo('name') ?></a>
+    </header>
+
+<?
+    if (have_posts()) {
+        while (have_posts()) {
+            the_post();
+            the_date('','<h2>','</h2>');
+?>
+
+    <article <? post_class() ?> id="post-<? the_ID() ?>">
+        <h1 class="storytitle">
+            <a href="<? the_permalink() ?>" rel="bookmark"><? the_title() ?></a>
+        </h1>
+
+        <div class="meta">
+            Filed under:
+            <? the_category(',') ?>
+            &#8212;
+            <? the_tags(__('Tags: '), ', ', ' &#8212; ') ?>
+            <? the_author() ?>
+            @
+            <? the_time() ?>
+            <? edit_post_link(__('Edit This')) ?>
+        </div>
+
+        <section class="storycontent">
+            <? the_content(__('(more...)')); ?>
+        </section>
+
+        <section class="feedback">
+<?
+            wp_link_pages();
+            comments_popup_link(__('Comments (0)'), __('Comments (1)'), __('Comments (%)'));
+?>
+        </section>
+
+    </article>
+
+    <section class="comments">
+<?          if ( post_password_required() ) { ?>
+        <p>Enter your password to view comments.</p>
+<?              return;
+            } ?>
+
+        <h1 id="comments"><? comments_number(__('No Comments'), __('1 Comment'), __('% Comments')); ?>
+<?          if ( comments_open() ) { ?>
+            <a href="#postcomment" title="Leave a comment">&raquo;</a>
+<?          } ?>
+        </h1>
+
+<?          if ( have_comments() ) { ?>
+
+        <ol id="commentlist">
+
+<?              foreach ($comments as $comment) { ?>
+            <li <? comment_class() ?> id="comment-<? comment_ID() ?>">
+                <?=get_avatar( $comment, 32 ) ?>
+                <? comment_text() ?>
+                <p>
+                    <cite>
+                        <? comment_type(_x('Comment', 'noun'), __('Trackback'), __('Pingback'))?>
+                        by
+                        <? comment_author_link() ?>
+                        &#8212;
+                        <? comment_date() ?>
+                        @
+                        <a href="#comment-<? comment_ID() ?>">
+                            <? comment_time() ?>
+                        </a>
+                    </cite>
+                    <? edit_comment_link(__("Edit This"), ' |'); ?>
+                </p>
+            </li>
+
+<?              } // end foreach comments ?>
+
+        </ol>
+
+<?          } else { // If there are no comments yet ?>
+
+        <p>No comments yet.</p>
+
+<?          } // End else ?>
+
+        <p><? post_comments_feed_link(__('<abbr title="Really Simple Syndication">RSS</abbr> feed for comments on this post.')); ?>
+
+<?          if ( pings_open() ) { ?>
+            <a href="<? trackback_url() ?>" rel="trackback">
+                TrackBack <abbr title="Universal Resource Locator">URL</abbr>
+            </a>
+<?          } ?>
+
+        </p>
+
+<?          if ( comments_open() ) { ?>
+        <h2 id="postcomment">Leave a comment</h2>
+
+<?              if ( get_option('comment_registration') && !is_user_logged_in() ) { ?>
+        
+        <p>
+            You must be <a href="<?=wp_login_url( get_permalink() )?>">logged in</a> to post a comment.
+        </p>
+
+<?              } ?>
+
+        <form action="<?php echo get_option('siteurl'); ?>/wp-comments-post.php" method="post" id="commentform">
+
+<?              if ( is_user_logged_in() ) { ?>
+
+            <p>
+                Logged in as
+                <a href="<?=get_option('siteurl')?>/wp-admin/profile.php"><?=$user_identity?></a>
+                <a href="<?=wp_logout_url(get_permalink()) ?>" title="Log out of this account">
+                    Log out &raquo;
+                </a>
+            </p>
+
+<?              } ?>
+
+            <p>
+                <input type="text" name="author" id="author" value="<?=esc_attr($comment_author) ?>" size="22" tabindex="1" />
+                <label for="author">
+                    <small>Name <?=$req?'(required)':''?></small>
+                </label>
+            </p>
+
+            <p>
+                <input type="text" name="email" id="email" value="<?=esc_attr($comment_author_email) ?>" size="22" tabindex="2" />
+                <label for="email">
+                    <small>Mail (will not be published) <?=$req?'(required)':''?></small>
+                </label>
+            </p>
+
+            <p>
+                <input type="text" name="url" id="url" value="<?=esc_attr($comment_author_url) ?>" size="22" tabindex="3" />
+                <label for="url">
+                    <small>Website</small>
+                </label>
+            </p>
+
+<?          } ?>
+
+            <p><textarea name="comment" id="comment" cols="58" rows="10" tabindex="4"></textarea></p>
+
+            <p>
+                <input name="submit" type="submit" id="submit" tabindex="5" value="Submit Comment" />
+                <input type="hidden" name="comment_post_ID" value="<?=$id?>" />
+            </p>
+
+<?          do_action('comment_form', $post->ID) ?>
+
+        </form>
+
+<?  } ?>
+
+<?  } else { ?>
+            <p><?php _e('Sorry, no posts matched your criteria.'); ?></p>
+<?  } ?>
+
+<? posts_nav_link(' &#8212; ', __('&laquo; Newer Posts'), __('Older Posts &raquo;')); ?>
+
+    </section>
+
+    <!-- begin footer -->
+    <nav>
+
+        <ul>
+        <?php 	/* Widgetized sidebar, if you have the plugin installed. */
+                if ( !function_exists('dynamic_sidebar') || !dynamic_sidebar() ) { ?>
+            <?php wp_list_pages('title_li=' . __('Pages:')); ?>
+            <?php wp_list_bookmarks('title_after=&title_before='); ?>
+            <?php wp_list_categories('title_li=' . __('Categories:')); ?>
+         <li id="search">
+           <label for="s"><?php _e('Search:'); ?></label>
+           <form id="searchform" method="get" action="<?php bloginfo('home'); ?>">
+            <div>
+                <input type="text" name="s" id="s" size="15" /><br />
+                <input type="submit" value="<?php esc_attr_e('Search'); ?>" />
+            </div>
+            </form>
+         </li>
+         <li id="archives"><?php _e('Archives:'); ?>
+            <ul>
+             <?php wp_get_archives('type=monthly'); ?>
+            </ul>
+         </li>
+         <li id="meta"><?php _e('Meta:'); ?>
+            <ul>
+                <?php wp_register(); ?>
+                <li><?php wp_loginout(); ?></li>
+                <li><a href="<?php bloginfo('rss2_url'); ?>" title="<?php _e('Syndicate this site using RSS'); ?>"><?php _e('<abbr title="Really Simple Syndication">RSS</abbr>'); ?></a></li>
+                <li><a href="<?php bloginfo('comments_rss2_url'); ?>" title="<?php _e('The latest comments to all posts in RSS'); ?>"><?php _e('Comments <abbr title="Really Simple Syndication">RSS</abbr>'); ?></a></li>
+                <li><a href="http://validator.w3.org/check/referer" title="<?php _e('This page validates as XHTML 1.0 Transitional'); ?>"><?php _e('Valid <abbr title="eXtensible HyperText Markup Language">XHTML</abbr>'); ?></a></li>
+                <li><a href="http://gmpg.org/xfn/"><abbr title="XHTML Friends Network">XFN</abbr></a></li>
+                <li><a href="http://wordpress.org/" title="<?php _e('Powered by WordPress, state-of-the-art semantic personal publishing platform.'); ?>"><abbr title="WordPress">WP</abbr></a></li>
+                <?php wp_meta(); ?>
+            </ul>
+         </li>
+ <? } ?>
+
+        </ul>
+
+    </nav>
+
+    <footer>
+        <p class="credit"><!--<?php echo get_num_queries(); ?> queries. <?php timer_stop(1); ?> seconds. --> <cite><?php echo sprintf(__("Powered by <a href='http://wordpress.org/' title='%s'><strong>WordPress</strong></a>"), __("Powered by WordPress, state-of-the-art semantic personal publishing platform.")); ?></cite></p>
+
+<? wp_footer(); ?>
+    </footer>
+
+</body>
+</html>
+
