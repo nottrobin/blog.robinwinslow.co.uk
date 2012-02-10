@@ -1,3 +1,6 @@
 [submodule "wp-content/themes/rw"]
 	path = wp-content/themes/rw
 	url = git@github.com:nottrobin/rw-theme.git
+[submodule "rw-theme"]
+	path = rw-theme
+	url = git@github.com:nottrobin/rw-theme.git
