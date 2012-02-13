@@ -32,6 +32,9 @@ define('DB_CHARSET', 'utf8');
 
 /** The Database Collate type. Don't change this if in doubt. */
 define('DB_COLLATE', '');
+define('DB_TYPE', 'sqlite');
+
+define('WP_ALLOW_REPAIR', true);
 
 /**#@+
  * Authentication Unique Keys.
@@ -42,10 +45,15 @@ define('DB_COLLATE', '');
  *
  * @since 2.6.0
  */
-define('AUTH_KEY',        'S_:H N<U6Vf}.^td[o-%Aj>,ZAJ#eb8liQ.*.LoOgKBtxDB[`tL`{>iD rb2hseA');
-define('SECURE_AUTH_KEY', 'yeBWU]<,PeB )s4f:T+f-%aQjr;uAz<xYd8] :G>LlPPbT*$tRCt :#74 H=Tj?$');
-define('LOGGED_IN_KEY',   'Q.`_#lDd-M>qdp%*BfU}EK|o.$c)B!:WrQ/IXQ(]zrj%P@3P7ogkQb^<KYl.{Tq3');
-define('NONCE_KEY',       'r2I41!5kq>|Ov_8e|^exU?+]C5/`H:ZN`P/3E4RAEw{[OlZDW J>UZ|-}QR.|XC=');
+define('AUTH_KEY',         'zoW+4!+GJosFY6)la=;G 1ie%|x_TQj.VId)T-|~*(=vK&[.?hpvVqYyq-U3&,P+');
+define('SECURE_AUTH_KEY',  '1cM^c_%Zvsy0g%l>-)pGS<DY~MGgX;JFAV$+uHGo6.ivhpR`;|*eO%5>HF-Pnm+/');
+define('LOGGED_IN_KEY',    '.R<A)mf2^fzR=]HAQEF`b+.9G# E2#/%7.(ckn/UYX?$U~n0jmKTM?(7!c9y1Zzg');
+define('NONCE_KEY',        '-n*[aAW,3XMABEq :ZbEWo$y]ADVMLi [6b`NW] ~PZ<:oC28TVQap})nB}M42K:');
+define('AUTH_SALT',        'vPy30H1 /8J/t/%#A>lxQ-MAS#W_K6xh?:`X_Zjpp^Ju0so8&yDhYdV%[1i%d0Gm');
+define('SECURE_AUTH_SALT', '<_EL@|~6(NUoLUk{X<p(%9u3PdDpc3-/1XVA78WFv(-Fu8S2-Zfou2bVF*B=Hbn%');
+define('LOGGED_IN_SALT',   'j2on-eSHho={GKv]r%HkL%{BKk3w7sfZ&jFJ]~Y7N_%nsa8z)>vOFEF?R,`*Zd+|');
+define('NONCE_SALT',       'FcY|,|TRZ6`s[/nyf{r&or;K>>DIg!Dd-[|<<jGh(Ml`;FgYUTW6q@V/JDt|YahS');
+
 /**#@-*/
 
 /**
@@ -74,3 +82,4 @@ if ( !defined('ABSPATH') )
 
 /** Sets up WordPress vars and included files. */
 require_once(ABSPATH . 'wp-settings.php');
+

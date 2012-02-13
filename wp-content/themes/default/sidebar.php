@@ -59,7 +59,22 @@
 				</ul>
 			</li>
 
-			<?php wp_list_categories('show_count=1&title_li=<h2>Categories</h2>'); ?>
+<?php
+    function handleError($errno, $errstr, $errfile, $errline, array $errcontext)
+    {
+        // error was suppressed with the @-operator
+        if (0 === error_reporting()) {
+            return false;
+        }
+
+        //throw new ErrorException($errstr, 0, $errno, $errfile, $errline);
+    }
+    set_error_handler('handleError');
+
+    wp_list_categories('show_count=1&title_li=<h2>Categories</h2>');
+
+    restore_error_handler();
+?>
 		</ul>
 		<ul>
 			<?php /* If this is the frontpage */ if ( is_home() || is_page() ) { ?>
