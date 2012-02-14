@@ -1536,4 +1536,442 @@ function dbDelta( $queries = '', $execute = true ) {
 		}
 
 		// For every field in the table
-		foreach ($tablefields 
+		foreach ($tablefields as $tablefield) {
+			// If the table field exists in the field array...
+			if (array_key_exists(strtolower($tablefield->Field), $cfields)) {
+				// Get the field type from the query
+				preg_match("|".$tablefield->Field." ([^ ]*( unsigned)?)|i", $cfields[strtolower($tablefield->Field)], $matches);
+				$fieldtype = $matches[1];
+
+				// Is actual field type different from the field type in query?
+				if ($tablefield->Type != $fieldtype) {
+					// Add a query to change the column type
+					$cqueries[] = "ALTER TABLE {$table} CHANGE COLUMN {$tablefield->Field} " . $cfields[strtolower($tablefield->Field)];
+					$for_update[$table.'.'.$tablefield->Field] = "Changed type of {$table}.{$tablefield->Field} from {$tablefield->Type} to {$fieldtype}";
+				}
+
+				// Get the default value from the array
+					//echo "{$cfields[strtolower($tablefield->Field)]}<br>";
+				if (preg_match("| DEFAULT '(.*)'|i", $cfields[strtolower($tablefield->Field)], $matches)) {
+					$default_value = $matches[1];
+					if ($tablefield->Default != $default_value) {
+						// Add a query to change the column's default value
+						$cqueries[] = "ALTER TABLE {$table} ALTER COLUMN {$tablefield->Field} SET DEFAULT '{$default_value}'";
+						$for_update[$table.'.'.$tablefield->Field] = "Changed default value of {$table}.{$tablefield->Field} from {$tablefield->Default} to {$default_value}";
+					}
+				}
+
+				// Remove the field from the array (so it's not added)
+				unset($cfields[strtolower($tablefield->Field)]);
+			} else {
+				// This field exists in the table, but not in the creation queries?
+			}
+		}
+
+		// For every remaining field specified for the table
+		foreach ($cfields as $fieldname => $fielddef) {
+			// Push a query line into $cqueries that adds the field to that table
+			$cqueries[] = "ALTER TABLE {$table} ADD COLUMN $fielddef";
+			$for_update[$table.'.'.$fieldname] = 'Added column '.$table.'.'.$fieldname;
+		}
+
+		// Index stuff goes here
+		// Fetch the table index structure from the database
+		$tableindices = $wpdb->get_results("SHOW INDEX FROM {$table};");
+
+		if ($tableindices) {
+			// Clear the index array
+			unset($index_ary);
+
+			// For every index in the table
+			foreach ($tableindices as $tableindex) {
+				// Add the index to the index data array
+				$keyname = $tableindex->Key_name;
+				$index_ary[$keyname]['columns'][] = array('fieldname' => $tableindex->Column_name, 'subpart' => $tableindex->Sub_part);
+				$index_ary[$keyname]['unique'] = ($tableindex->Non_unique == 0)?true:false;
+			}
+
+			// For each actual index in the index array
+			foreach ($index_ary as $index_name => $index_data) {
+				// Build a create string to compare to the query
+				$index_string = '';
+				if ($index_name == 'PRIMARY') {
+					$index_string .= 'PRIMARY ';
+				} else if($index_data['unique']) {
+					$index_string .= 'UNIQUE ';
+				}
+				$index_string .= 'KEY ';
+				if ($index_name != 'PRIMARY') {
+					$index_string .= $index_name;
+				}
+				$index_columns = '';
+				// For each column in the index
+				foreach ($index_data['columns'] as $column_data) {
+					if ($index_columns != '') $index_columns .= ',';
+					// Add the field to the column list string
+					$index_columns .= $column_data['fieldname'];
+					if ($column_data['subpart'] != '') {
+						$index_columns .= '('.$column_data['subpart'].')';
+					}
+				}
+				// Add the column list to the index create string
+				$index_string .= ' ('.$index_columns.')';
+				if (!(($aindex = array_search($index_string, $indices)) === false)) {
+					unset($indices[$aindex]);
+					//echo "<pre style=\"border:1px solid #ccc;margin-top:5px;\">{$table}:<br />Found index:".$index_string."</pre>\n";
+				}
+				//else echo "<pre style=\"border:1px solid #ccc;margin-top:5px;\">{$table}:<br /><b>Did not find index:</b>".$index_string."<br />".print_r($indices, true)."</pre>\n";
+			}
+		}
+
+		// For every remaining index specified for the table
+		foreach ( (array) $indices as $index ) {
+			// Push a query line into $cqueries that adds the index to that table
+			$cqueries[] = "ALTER TABLE {$table} ADD $index";
+			$for_update[$table.'.'.$fieldname] = 'Added index '.$table.' '.$index;
+		}
+
+		// Remove the original table creation query from processing
+		unset( $cqueries[ $table ], $for_update[ $table ] );
+	}
+
+	$allqueries = array_merge($cqueries, $iqueries);
+	if ($execute) {
+		foreach ($allqueries as $query) {
+			//echo "<pre style=\"border:1px solid #ccc;margin-top:5px;\">".print_r($query, true)."</pre>\n";
+			$wpdb->query($query);
+		}
+	}
+
+	return $for_update;
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 1.5.0
+ */
+function make_db_current( $tables = 'all' ) {
+	$alterations = dbDelta( $tables );
+	echo "<ol>\n";
+	foreach($alterations as $alteration) echo "<li>$alteration</li>\n";
+	echo "</ol>\n";
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 1.5.0
+ */
+function make_db_current_silent(  $tables = 'all' ) {
+	$alterations = dbDelta( $tables );
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 1.5.0
+ *
+ * @param unknown_type $theme_name
+ * @param unknown_type $template
+ * @return unknown
+ */
+function make_site_theme_from_oldschool($theme_name, $template) {
+	$home_path = get_home_path();
+	$site_dir = WP_CONTENT_DIR . "/themes/$template";
+
+	if (! file_exists("$home_path/index.php"))
+		return false;
+
+	// Copy files from the old locations to the site theme.
+	// TODO: This does not copy arbitrary include dependencies.  Only the
+	// standard WP files are copied.
+	$files = array('index.php' => 'index.php', 'wp-layout.css' => 'style.css', 'wp-comments.php' => 'comments.php', 'wp-comments-popup.php' => 'comments-popup.php');
+
+	foreach ($files as $oldfile => $newfile) {
+		if ($oldfile == 'index.php')
+			$oldpath = $home_path;
+		else
+			$oldpath = ABSPATH;
+
+		if ($oldfile == 'index.php') { // Check to make sure it's not a new index
+			$index = implode('', file("$oldpath/$oldfile"));
+			if (strpos($index, 'WP_USE_THEMES') !== false) {
+				if (! @copy(WP_CONTENT_DIR . '/themes/' . WP_DEFAULT_THEME . '/index.php', "$site_dir/$newfile"))
+					return false;
+				continue; // Don't copy anything
+				}
+		}
+
+		if (! @copy("$oldpath/$oldfile", "$site_dir/$newfile"))
+			return false;
+
+		chmod("$site_dir/$newfile", 0777);
+
+		// Update the blog header include in each file.
+		$lines = explode("\n", implode('', file("$site_dir/$newfile")));
+		if ($lines) {
+			$f = fopen("$site_dir/$newfile", 'w');
+
+			foreach ($lines as $line) {
+				if (preg_match('/require.*wp-blog-header/', $line))
+					$line = '//' . $line;
+
+				// Update stylesheet references.
+				$line = str_replace("<?php echo __get_option('siteurl'); ?>/wp-layout.css", "<?php bloginfo('stylesheet_url'); ?>", $line);
+
+				// Update comments template inclusion.
+				$line = str_replace("<?php include(ABSPATH . 'wp-comments.php'); ?>", "<?php comments_template(); ?>", $line);
+
+				fwrite($f, "{$line}\n");
+			}
+			fclose($f);
+		}
+	}
+
+	// Add a theme header.
+	$header = "/*\nTheme Name: $theme_name\nTheme URI: " . __get_option('siteurl') . "\nDescription: A theme automatically created by the update.\nVersion: 1.0\nAuthor: Moi\n*/\n";
+
+	$stylelines = file_get_contents("$site_dir/style.css");
+	if ($stylelines) {
+		$f = fopen("$site_dir/style.css", 'w');
+
+		fwrite($f, $header);
+		fwrite($f, $stylelines);
+		fclose($f);
+	}
+
+	return true;
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 1.5.0
+ *
+ * @param unknown_type $theme_name
+ * @param unknown_type $template
+ * @return unknown
+ */
+function make_site_theme_from_default($theme_name, $template) {
+	$site_dir = WP_CONTENT_DIR . "/themes/$template";
+	$default_dir = WP_CONTENT_DIR . '/themes/' . WP_DEFAULT_THEME;
+
+	// Copy files from the default theme to the site theme.
+	//$files = array('index.php', 'comments.php', 'comments-popup.php', 'footer.php', 'header.php', 'sidebar.php', 'style.css');
+
+	$theme_dir = @ opendir($default_dir);
+	if ($theme_dir) {
+		while(($theme_file = readdir( $theme_dir )) !== false) {
+			if (is_dir("$default_dir/$theme_file"))
+				continue;
+			if (! @copy("$default_dir/$theme_file", "$site_dir/$theme_file"))
+				return;
+			chmod("$site_dir/$theme_file", 0777);
+		}
+	}
+	@closedir($theme_dir);
+
+	// Rewrite the theme header.
+	$stylelines = explode("\n", implode('', file("$site_dir/style.css")));
+	if ($stylelines) {
+		$f = fopen("$site_dir/style.css", 'w');
+
+		foreach ($stylelines as $line) {
+			if (strpos($line, 'Theme Name:') !== false) $line = 'Theme Name: ' . $theme_name;
+			elseif (strpos($line, 'Theme URI:') !== false) $line = 'Theme URI: ' . __get_option('url');
+			elseif (strpos($line, 'Description:') !== false) $line = 'Description: Your theme.';
+			elseif (strpos($line, 'Version:') !== false) $line = 'Version: 1';
+			elseif (strpos($line, 'Author:') !== false) $line = 'Author: You';
+			fwrite($f, $line . "\n");
+		}
+		fclose($f);
+	}
+
+	// Copy the images.
+	umask(0);
+	if (! mkdir("$site_dir/images", 0777)) {
+		return false;
+	}
+
+	$images_dir = @ opendir("$default_dir/images");
+	if ($images_dir) {
+		while(($image = readdir($images_dir)) !== false) {
+			if (is_dir("$default_dir/images/$image"))
+				continue;
+			if (! @copy("$default_dir/images/$image", "$site_dir/images/$image"))
+				return;
+			chmod("$site_dir/images/$image", 0777);
+		}
+	}
+	@closedir($images_dir);
+}
+
+// Create a site theme from the default theme.
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 1.5.0
+ *
+ * @return unknown
+ */
+function make_site_theme() {
+	// Name the theme after the blog.
+	$theme_name = __get_option('blogname');
+	$template = sanitize_title($theme_name);
+	$site_dir = WP_CONTENT_DIR . "/themes/$template";
+
+	// If the theme already exists, nothing to do.
+	if ( is_dir($site_dir)) {
+		return false;
+	}
+
+	// We must be able to write to the themes dir.
+	if (! is_writable(WP_CONTENT_DIR . "/themes")) {
+		return false;
+	}
+
+	umask(0);
+	if (! mkdir($site_dir, 0777)) {
+		return false;
+	}
+
+	if (file_exists(ABSPATH . 'wp-layout.css')) {
+		if (! make_site_theme_from_oldschool($theme_name, $template)) {
+			// TODO:  rm -rf the site theme directory.
+			return false;
+		}
+	} else {
+		if (! make_site_theme_from_default($theme_name, $template))
+			// TODO:  rm -rf the site theme directory.
+			return false;
+	}
+
+	// Make the new site theme active.
+	$current_template = __get_option('template');
+	if ($current_template == WP_DEFAULT_THEME) {
+		update_option('template', $template);
+		update_option('stylesheet', $template);
+	}
+	return $template;
+}
+
+/**
+ * Translate user level to user role name.
+ *
+ * @since 2.0.0
+ *
+ * @param int $level User level.
+ * @return string User role name.
+ */
+function translate_level_to_role($level) {
+	switch ($level) {
+	case 10:
+	case 9:
+	case 8:
+		return 'administrator';
+	case 7:
+	case 6:
+	case 5:
+		return 'editor';
+	case 4:
+	case 3:
+	case 2:
+		return 'author';
+	case 1:
+		return 'contributor';
+	case 0:
+		return 'subscriber';
+	}
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 2.1.0
+ */
+function wp_check_mysql_version() {
+	global $wpdb;
+	$result = $wpdb->check_database_version();
+	if ( is_wp_error( $result ) )
+		die( $result->get_error_message() );
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @since 2.2.0
+ */
+function maybe_disable_automattic_widgets() {
+	$plugins = __get_option( 'active_plugins' );
+
+	foreach ( (array) $plugins as $plugin ) {
+		if ( basename( $plugin ) == 'widgets.php' ) {
+			array_splice( $plugins, array_search( $plugin, $plugins ), 1 );
+			update_option( 'active_plugins', $plugins );
+			break;
+		}
+	}
+}
+
+/**
+ * Runs before the schema is upgraded.
+ *
+ * @since 2.9.0
+ */
+function pre_schema_upgrade() {
+	global $wp_current_db_version, $wp_db_version, $wpdb;
+
+	// Upgrade versions prior to 2.9
+	if ( $wp_current_db_version < 11557 ) {
+		// Delete duplicate options.  Keep the option with the highest option_id.
+		$wpdb->query("DELETE o1 FROM $wpdb->options AS o1 JOIN $wpdb->options AS o2 USING (`option_name`) WHERE o2.option_id > o1.option_id");
+
+		// Drop the old primary key and add the new.
+		$wpdb->query("ALTER TABLE $wpdb->options DROP PRIMARY KEY, ADD PRIMARY KEY(option_id)");
+
+		// Drop the old option_name index. dbDelta() doesn't do the drop.
+		$wpdb->query("ALTER TABLE $wpdb->options DROP INDEX option_name");
+	}
+
+}
+
+/**
+ * Install global terms.
+ *
+ * @since 3.0.0
+ *
+ */
+if ( !function_exists( 'install_global_terms' ) ) :
+function install_global_terms() {
+	global $wpdb, $charset_collate;
+	$ms_queries = "
+CREATE TABLE $wpdb->sitecategories (
+  cat_ID bigint(20) NOT NULL auto_increment,
+  cat_name varchar(55) NOT NULL default '',
+  category_nicename varchar(200) NOT NULL default '',
+  last_updated timestamp NOT NULL,
+  PRIMARY KEY  (cat_ID),
+  KEY category_nicename (category_nicename),
+  KEY last_updated (last_updated)
+) $charset_collate;
+";
+// now create tables
+	dbDelta( $ms_queries );
+}
+endif;
+?>
