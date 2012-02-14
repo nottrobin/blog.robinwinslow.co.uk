@@ -114,7 +114,14 @@ class pdo_db extends wpdb {
 	 *	@return	string	escaped variable
 	 */
 	function escape($string) {
-		return addslashes($string);
+        if ( is_array($string) ) {
+            foreach ($string as &$value) {
+                $value = addslashes($value);
+            }
+            return $string;
+        } else {
+            return addslashes($string);
+        }
 	}
 	
 	/**
